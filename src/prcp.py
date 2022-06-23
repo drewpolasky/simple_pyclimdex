@@ -2,38 +2,65 @@
 
 import numpy as np
 from itertools import groupby
+import matplotlib.pyplot as plt
 
 
 def prcp_mean(prcp):
+	"""
+
+	:param prcp:
+	:return:
+	"""
 	prcp = np.array(prcp)
 	prcp_years = prcp.reshape(-1, 365)
 	return np.nanmean(prcp_years, axis=1)
 
 
 def rx1_day(prcp):
+	"""
+	annual single day prcp max
+	:param prcp:
+	:return:
+	"""
 	prcp = np.array(prcp)
 	prcp_years = prcp.reshape(-1, 365)
 	return np.nanmax(prcp_years, axis=1)
 
 
-def rx5_day(prcp):
+def rx5_day(prcp, stretch=5):
+	"""
+	max prcp in a 5 day stretch
+	:param stretch: length of stretch to calculate over
+	:param prcp:
+	:return:
+	"""
 	prcp = np.array(prcp)
-	prcp_years = prcp.reshape(-1, 365)
-	prcp_years = np.convolve(prcp_years, np.ones(5, type=int), 'valid')
+	prcp_stretches = np.convolve(prcp, np.ones(stretch), 'same')
+	prcp_years = prcp_stretches.reshape(-1, 365)
 	return np.nanmax(prcp_years, axis=1)
 
 
-def r95p(prcp, threshold=95):
+def r95p(prcp, threshold=95, reference_prcp=None):
+	"""
+	Annual total PRCP when RR > 95th percentile
+	:param reference_prcp:
+	:param prcp:
+	:param threshold:
+	:return:
+	"""
 	prcp = np.array(prcp)
 	prcp_years = prcp.reshape(-1, 365)
+	if reference_prcp is None:
+		reference_prcp = prcp
+	thresh_value = np.percentile(reference_prcp[reference_prcp >= 0.1], threshold)
+	output = []
+	for i in range(prcp_years.shape[0]):
+		prcp_year = prcp_years[i, :]
+		output.append(np.mean(prcp_year[prcp_year > thresh_value]))
+	return output
 
 
-def r99p(prcp):
-	prcp = np.array(prcp)
-	prcp_years = prcp.reshape(-1, 365)
-
-
-def sdii(prcp, threshold=0.01):
+def sdii(prcp, threshold=0.1):
 	"""
 	simple precipitation intensity index -- precipitation on wet days
 	:param threshold:
@@ -42,8 +69,10 @@ def sdii(prcp, threshold=0.01):
 	"""
 	prcp = np.array(prcp)
 	prcp_years = prcp.reshape(-1, 365)
-	sdii_years = prcp_years[prcp_years > threshold]
-	sdii_values = np.mean(sdii_years, axis=1)
+	sdii_values = []
+	for i in range(prcp_years.shape[0]):
+		prcp_year = prcp_years[i, :]
+		sdii_values.append(np.mean(prcp_year[prcp_year > threshold]))
 	return sdii_values
 
 
@@ -90,12 +119,24 @@ def r10mm(prcp, threshold=10):
 	prcp_years = prcp.reshape(-1, 365)
 	r10_values = []
 	for i in range(prcp_years.shape[0]):
-		r10_values.append()
+		counts = np.sum(prcp_years[i] >= threshold)
+		r10_values.append(counts)
+	return r10_values
 
-def r20mm(prcp):
-	prcp = np.array(prcp)
-	prcp_years = prcp.reshape(-1, 365)
+
+def test_indices():
+	num_years = 10
+	data = np.random.gamma(1, size=num_years * 365, scale=5)
+	#plt.plot(data)
+	#plt.show()
+	func_list = [prcp_mean, rx1_day, rx5_day, r95p, sdii, cdd, cwd, r10mm]
+	for func in func_list:
+		print(func.__name__)
+		output = func(data)
+		# plt.plot(output)
+		# plt.title(str(func.__name__))
+		print(output)
 
 
 if __name__ == '__main__':
-	pass
+	test_indices()
